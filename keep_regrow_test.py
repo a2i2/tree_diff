@@ -20,27 +20,58 @@ def main():
     # batch 1 + 2 (full dataset)
     X2, y2 = X, y
     
-    print("Tree at t = 1:")
+    alpha = 1
+    beta = 0
+    
+    print(f"Tree at t = 1 (alpha={alpha}, beta={beta}):")
     tree1 = keep_regrow_alg.grow_tree(
         pd.DataFrame(X1, columns=iris.feature_names),
-        y1
+        y1,
+        None,
+        4,
+        alpha,
+        beta
     )
-    print(tree1.pretty_print())
-
-    print("\nTree at t = 2:")
+    print(tree1.pretty_print() + '\n')
+    
+    print(f"Tree at t = 2 (alpha={alpha}, beta={beta}):")
     tree2 = keep_regrow_alg.grow_tree(
         pd.DataFrame(X2, columns=iris.feature_names),
         y2,
-        tree1
+        tree1,
+        4,
+        alpha,
+        beta
     )
-    print(tree2.pretty_print())
+    print(tree2.pretty_print() + '\n')
 
-    print("\nTree at t = 2 if we discarded old tree:")    
-    tree3 = keep_regrow_alg.grow_tree(
+    alpha = 1
+    beta = 0.25
+    
+    print(f"Tree at t = 2 (alpha={alpha}, beta={beta}):")
+    tree2 = keep_regrow_alg.grow_tree(
         pd.DataFrame(X2, columns=iris.feature_names),
-        y2
+        y2,
+        tree1,
+        4,
+        alpha,
+        beta
     )
-    print(tree3.pretty_print())
+    print(tree2.pretty_print() + '\n')
+    
+    alpha = 1
+    beta = 0.5
+    
+    print(f"Tree at t = 2 (alpha={alpha}, beta={beta}):")
+    tree2 = keep_regrow_alg.grow_tree(
+        pd.DataFrame(X2, columns=iris.feature_names),
+        y2,
+        tree1,
+        4,
+        alpha,
+        beta
+    )
+    print(tree2.pretty_print() + '\n')
 
 
 if __name__ == "__main__":

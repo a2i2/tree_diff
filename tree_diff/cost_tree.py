@@ -1,33 +1,40 @@
 import numpy as np
 from dataclasses import dataclass, field
-from .tree import DecisionNode
-
-MISCLASSIFICATION_COST = 1
-NODE_COST = 1 + 0.25 # complexity cost + audit cost
+from .tree import DecisionNode, TreeMetadata
 
 
 # utility function
 def _indent(s):
     return '\n'.join("    " + line for line in s.split('\n'))
 
+@dataclass
+class CostMetadata(TreeMetadata):
+    alpha: float
+    beta: float
 
 @dataclass
 class CostNode(DecisionNode):
-    internal_cost: float = NODE_COST
+    is_new: bool = True
     total_cost: float = 0.0
 
-    def recost(self, classes):
-        # complexity cost + audit cost
-        self.total_cost = self.internal_cost
-        
+    def recost(self, metadata):
+        # complexity cost
+        self.total_cost = metadata.alpha
+
+        # audit cost
+        if self.is_new:
+            self.total_cost += metadata.beta
+
         # cost of misclassification
         if self.is_leaf():
-            if self.label not in classes:
-                misclassifications = sum(self.value)
+            if self.label not in metadata.classes:
+                correct = 0
             else:
-                misclassifications = sum(self.value) - self.value[self.label_index(classes)]
-            self.total_cost += misclassifications * MISCLASSIFICATION_COST
-        
+                correct = self.value[self.label_index(metadata.classes)]
+            
+            incorrect = sum(self.value) - correct
+            self.total_cost += incorrect
+
         for child in self.children:
             self.total_cost += child.total_cost
 
@@ -52,13 +59,12 @@ class CostNode(DecisionNode):
         # TODO: Reimplement
         if self.is_leaf():
             return (
-                f"LEAF {self.find_to_condition()} (Cost: {self.total_cost}, Label: {self.label}, Values: {self.value})"
+                f"{'NEW' if self.is_new else 'OLD'} LEAF {self.find_to_condition()} (Cost: {self.total_cost}, Label: {self.label}, Values: {self.value})"
             )
 
         # non-leaf node
-        s = f"NODE {'ROOT' if self.is_root() else self.find_to_condition()} (Cost: {self.total_cost})\n"
-        for child in self.children:
-            s += _indent(child.pretty_print()) + '\n'
+        s = f"{'NEW' if self.is_new else 'OLD'} NODE {'ROOT' if self.is_root() else self.find_to_condition()} (Cost: {self.total_cost})\n"
+        s += '\n'.join(_indent(child.pretty_print()) for child in self.children)
         return s
 
     @property
@@ -70,6 +76,7 @@ class CostNode(DecisionNode):
             p = p.parent
             depth += 1
         return depth
+
 
 def to_cost_tree(node):
     new_node = CostNode(
