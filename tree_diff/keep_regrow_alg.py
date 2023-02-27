@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from collections import Counter
 import sklearn
 import sklearn.tree
@@ -6,7 +7,7 @@ import uuid
 from .conversion import sklearn_to_tree
 from .cost_tree import CostNode, CostMetadata, to_cost_tree
 from .tree import DecisionNode, count_values, gini_impurity
-
+from .tree import grow_tree as our_grow_tree
 
 OLD = False # Old node (is_new = False)
 NEW = True  # New node (is_new = True)
@@ -17,7 +18,18 @@ def _uid():
     return uuid.uuid4().int
 
 
-def grow_tree(X, y, old_tree=None, max_depth=4, alpha=1, beta=0.25, **kwargs):
+def sklearn_grow_func(X, y, max_depth, metadata):
+    # Sklearn implementation of tree growing
+    clf = sklearn.tree.DecisionTreeClassifier(max_depth=max_depth, random_state=0)
+    clf = clf.fit(X, y)
+    return sklearn_to_tree(clf, metadata.column_names)
+
+def tree_grow_func(X, y, max_depth, metadata):
+    # Our implementation of tree growing
+    return our_grow_tree(pd.DataFrame(X, columns=metadata.column_names), y, max_depth=max_depth)
+
+
+def grow_tree(X, y, old_tree=None, max_depth=4, alpha=1, beta=0.25, grow_func=tree_grow_func, **kwargs):
     # alpha controls penalty for complexity (number of nodes)
     # beta controls additional penalty for changes (number of new nodes)
     column_names = X.columns
@@ -31,7 +43,7 @@ def grow_tree(X, y, old_tree=None, max_depth=4, alpha=1, beta=0.25, **kwargs):
         assert isinstance(old_tree, DecisionNode)
         old_tree = to_cost_tree(old_tree)
 
-    metadata = CostMetadata(classes, column_names, alpha, beta)
+    metadata = CostMetadata(classes, column_names, alpha, beta, grow_func)
     
     flag_old(old_tree)
     recost(X, y, old_tree, metadata)
@@ -65,9 +77,7 @@ def regrow(X, y, node, max_depth, metadata):
         tree = DecisionNode(None, 0, [])
     else:
         # sklearn splits are non-deterministic unless we set random_state
-        clf = sklearn.tree.DecisionTreeClassifier(max_depth=max_depth, random_state=0)
-        clf = clf.fit(_X, _y)
-        tree = sklearn_to_tree(clf, metadata.column_names)
+        tree = metadata.grow_func(_X, _y, max_depth, metadata)
 
     tree = to_cost_tree(tree)
     return tree

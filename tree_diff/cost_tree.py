@@ -1,5 +1,6 @@
 import numpy as np
 from dataclasses import dataclass, field
+from typing import Callable
 from .tree import DecisionNode, TreeMetadata
 
 
@@ -11,6 +12,7 @@ def _indent(s):
 class CostMetadata(TreeMetadata):
     alpha: float
     beta: float
+    grow_func: Callable[[np.ndarray, np.ndarray, int, TreeMetadata], DecisionNode]
 
 @dataclass
 class CostNode(DecisionNode):

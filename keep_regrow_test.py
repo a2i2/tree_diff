@@ -6,6 +6,13 @@ from tree_diff import keep_regrow_alg
 
 
 def main():
+    print(f"=== Regrow func: Sklearn regrowth algorithm ===\n")
+    run_tests(keep_regrow_alg.sklearn_grow_func)
+
+    print(f"=== Regrow func: Our tree regrowth algorithm ===\n")
+    run_tests(keep_regrow_alg.tree_grow_func)
+    
+def run_tests(regrow_func):
     iris = load_iris()
     X, y = iris.data, iris.target
 
@@ -30,7 +37,8 @@ def main():
         None,
         4,
         alpha,
-        beta
+        beta,
+        regrow_func
     )
     print(tree1.pretty_print() + '\n')
     
@@ -41,7 +49,8 @@ def main():
         tree1,
         4,
         alpha,
-        beta
+        beta,
+        regrow_func
     )
     print(tree2.pretty_print() + '\n')
 
@@ -55,12 +64,13 @@ def main():
         tree1,
         4,
         alpha,
-        beta
+        beta,
+        regrow_func
     )
     print(tree2.pretty_print() + '\n')
     
     alpha = 1
-    beta = 0.5
+    beta = 1
     
     print(f"Tree at t = 2 (alpha={alpha}, beta={beta}):")
     tree2 = keep_regrow_alg.grow_tree(
@@ -69,7 +79,8 @@ def main():
         tree1,
         4,
         alpha,
-        beta
+        beta,
+        regrow_func
     )
     print(tree2.pretty_print() + '\n')
 
