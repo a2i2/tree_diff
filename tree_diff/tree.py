@@ -54,14 +54,22 @@ class Split:
     operations: List[Tuple[Operator, float]]
 
 @dataclass
+class TreeMetadata:
+    classes: List[str]
+    column_names: List[str]
+
+@dataclass
 class DecisionNode:
     label: str
     node_id: int
     value: List[int]
     impurity: float = 0.0
-    parent: 'Node' = None
-    children: List['Node'] = field(default_factory=list)
+    parent: 'DecisionNode' = None
+    children: List['DecisionNode'] = field(default_factory=list)
     conditions: List[Condition] = field(default_factory=list)
+
+    def label_index(self, classes):
+        return classes.index(self.label)
 
     def walk(self, callback):
         callback(self)
@@ -69,6 +77,8 @@ class DecisionNode:
             n.walk(callback)
 
     def add_child(self, condition, node):
+        assert isinstance(condition, Condition)
+        assert isinstance(node, DecisionNode)
         self.conditions.append(condition)
         node.parent = self
         self.children.append(node)
