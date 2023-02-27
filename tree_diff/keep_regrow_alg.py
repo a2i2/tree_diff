@@ -9,6 +9,7 @@ from .cost_tree import CostNode, CostMetadata, to_cost_tree
 from .tree import DecisionNode, count_values, gini_impurity
 from .tree import grow_tree as our_grow_tree
 
+
 OLD = False # Old node (is_new = False)
 NEW = True  # New node (is_new = True)
 
@@ -23,6 +24,7 @@ def sklearn_grow_func(X, y, max_depth, metadata):
     clf = sklearn.tree.DecisionTreeClassifier(max_depth=max_depth, random_state=0)
     clf = clf.fit(X, y)
     return sklearn_to_tree(clf, metadata.column_names)
+
 
 def tree_grow_func(X, y, max_depth, metadata):
     # Our implementation of tree growing
@@ -113,10 +115,10 @@ def recost(X, y, node, metadata, fix_label=False):
 
 
 def prune(X, y, node, metadata):
-    _, _y = filter_data(X, y, node)
-    pred = best_pred(_y, metadata.classes)
-    value = count_values(_y, metadata.classes)
-    impurity = gini_impurity(_y)
+    # X, y must be filtered to the current node
+    pred = best_pred(y, metadata.classes)
+    value = count_values(y, metadata.classes)
+    impurity = gini_impurity(y)
 
     prune_tree = CostNode(pred, _uid(), value, impurity)
     prune_tree.recost(metadata)
@@ -127,9 +129,11 @@ def prune(X, y, node, metadata):
         keep_tree = prune_tree
     else:
         keep_tree = CostNode(pred, _uid(), value, impurity)
-        new_children = [prune(X, y, child, metadata) for child in node.children]
-        for child, condition in zip(new_children, node.conditions):
-            keep_tree.add_child(condition, child)
+
+        for child, condition in zip(node.children, node.conditions):
+            _X, _y = filter_data(X, y, child)
+            new_child = prune(_X, _y, child, metadata)
+            keep_tree.add_child(condition, new_child)
         keep_tree.recost(metadata)
 
     if keep_tree.total_cost <= prune_tree.total_cost:
@@ -138,7 +142,8 @@ def prune(X, y, node, metadata):
 
 
 def reduce(X, y, node, max_depth, metadata):
-    # TODO: consider re-evaluating node.value, node.impurity here rather than requiring reeval'ed tree
+    # node: The original tree (costs of original tree must be correct, call `recost` function beforehand)
+    # X, y: All data (may optionally be filtered to the current node)
     if node.is_leaf():
         keep_tree = CostNode(
             node.label, node.node_id, node.value, node.impurity,
@@ -156,7 +161,7 @@ def reduce(X, y, node, max_depth, metadata):
         keep_tree.recost(metadata)
 
     regrow_tree = regrow(X, y, node, max_depth, metadata)
-    _X, _y = filter_data(X, y, node) # needed to ensure that we can filter data to this node even though regrow_tree parent not set
+    _X, _y = filter_data(X, y, node) # need to ensure that we filter data to just the node we are pruning
     regrow_tree = prune(_X, _y, regrow_tree, metadata)
 
     if keep_tree.total_cost <= regrow_tree.total_cost:
