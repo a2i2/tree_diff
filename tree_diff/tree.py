@@ -201,7 +201,8 @@ def grow_tree(X, y, **kwargs):
     # Set up decision tree
     classes = np.unique(y)
     counts = count_values(y, classes)
-    tree = DecisionNode(max(y), node_counter, counts, gini_impurity(y))
+    majority_class = classes[np.argmax(count_values(y, classes))]
+    tree = DecisionNode(majority_class, node_counter, counts, gini_impurity(y))
     stack.append((tree, X, y))
 
     while len(stack) != 0:
