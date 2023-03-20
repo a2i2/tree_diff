@@ -10,7 +10,7 @@ import hydra
 from surround import Surround, Assembler
 
 from .config import Config
-from .stages import Baseline, MissedPredictions, BaselineModels
+from .stages import BaselineModels
 from .file_system_runner import FileSystemRunner
 
 from hydra.core.hydra_config import HydraConfig
