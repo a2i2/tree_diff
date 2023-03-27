@@ -17,4 +17,4 @@ To get started:
 * `rulecosi` algorithm needs to be git pulled into a `3rdparty` directory:
   * Run `mkdir 3rdparty` from the project directory
   * `cd 3rdparty`
-  * `git pull https://github.com/jobregon1212/rulecosi.git`
+  * `git clone https://github.com/jobregon1212/rulecosi.git`
