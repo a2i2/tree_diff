@@ -19,6 +19,16 @@ def _uid():
     return uuid.uuid4().int
 
 
+def relabel(node, id_counter=1):
+    node.node_id = id_counter
+    id_counter += 1
+
+    for child in node.children:
+        id_counter = relabel(child, id_counter)
+
+    return id_counter
+
+
 def sklearn_grow_func(X, y, max_depth, metadata):
     # Sklearn implementation of tree growing
     clf = sklearn.tree.DecisionTreeClassifier(max_depth=max_depth, random_state=0)
@@ -51,6 +61,7 @@ def grow_tree(X, y, old_tree=None, max_depth=4, alpha=1, beta=0.25, grow_func=tr
     recost(X, y, old_tree, metadata)
     
     tree = reduce(X, y, old_tree, max_depth, metadata)
+    relabel(tree)
     return tree
 
 
