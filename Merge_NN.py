@@ -69,7 +69,7 @@ def merge_equations(equations_x, equations_y):
     return np.vstack((equations_x, equations_y))
 
 def equations_to_vertices(equations):
-    mat1 = cdd.Matrix(equations, number_type = 'float')
+    mat1 = cdd.Matrix(equations, number_type = 'fraction')
     mat1.rep_type = cdd.RepType.INEQUALITY
     poly1 = cdd.Polyhedron(mat1)
 
@@ -79,7 +79,8 @@ def equations_to_vertices(equations):
         # empty matrix, activation pattern does not exist
         return None
     
-    matrix = np.matrix([[gen[i][j] for j in range(0,gen.col_size)] for i in range(0,gen.row_size)])    
+    float_type = cdd.NumberTypeable('float')
+    matrix = np.matrix([[float_type.make_number(gen[i][j]) for j in range(0,gen.col_size)] for i in range(0,gen.row_size)])    
 
     # check that cdd lib returned vertices (not rays)
     if not np.all(matrix[:,0] == 1):
@@ -157,10 +158,20 @@ def volume_weighted_output(A, B):
 
 
     # Compute the Convex Hull of the vertices
-    hull_f = ConvexHull(vertices_f)
+    
+    # Set flag Q12 to prevent the following:
+    #
+    # QH6271 qhull topology error (qh_check_dupridge): wide merge (824686947162.7x wider) due to dupridge between f3466 and f3563 (vertex dist 0.00039), merge dist 0.041, while processing p75
+    # - Allow error with option 'Q12'
+    # ...
+    # A wide merge error has occurred.  Qhull has produced a wide facet due to facet merges and vertex merges.
+    # This usually occurs when the input is nearly degenerate and substantial merging has occurred.
+    # See http://www.qhull.org/html/qh-impre.htm#limit
+
+    hull_f = ConvexHull(vertices_f, qhull_options = 'Q12')
     # The volume of the convex polytope is stored in the 'volume' attribute of the ConvexHull object
     volume_f = hull_f.volume
-    hull_g = ConvexHull(vertices_g)
+    hull_g = ConvexHull(vertices_g, qhull_options = 'Q12')
     volume_g = hull_g.volume
 
     weight_f = volume_f/(volume_f + volume_g) # depends on volume (scalar)
@@ -308,21 +319,22 @@ def find_activation_region_layer_l(coefs, intercepts, pattern_l, pattern_previou
                                    constraints_A, constraints_B)
     
 
-    mat1 = cdd.Matrix(H, number_type = 'float')
+    mat1 = cdd.Matrix(H, number_type = 'fraction')
     mat1.rep_type = cdd.RepType.INEQUALITY
     poly1 = cdd.Polyhedron(mat1)
-    print("H matrix", poly1) # debug
+    #print("H matrix", poly1) # debug
     
     gen = poly1.get_generators()
     #print(gen)
-    print("V matrix", gen) # debug
+    #print("V matrix", gen) # debug
 
     
     if gen.row_size == 0:
         # empty matrix, activation pattern does not exist
         return None
     
-    matrix = np.matrix([[gen[i][j] for j in range(0,gen.col_size)] for i in range(0,gen.row_size)])    
+    float_type = cdd.NumberTypeable('float')
+    matrix = np.matrix([[float_type.make_number(gen[i][j]) for j in range(0,gen.col_size)] for i in range(0,gen.row_size)])    
 
     # check that cdd lib returned vertices (not rays)
     assert np.all(matrix[:,0] == 1)
