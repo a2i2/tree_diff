@@ -11,6 +11,7 @@ import itertools
 from dataclasses import dataclass, field
 from typing import *
 from abc import ABC, abstractmethod
+import scipy
 from scipy.spatial import ConvexHull
 import matplotlib.cm as cm
 import matplotlib.tri as tri
@@ -19,7 +20,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from sklearn.preprocessing import MinMaxScaler
 from mpl_toolkits.mplot3d import Axes3D
 import plotly.express as px
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, log_loss
 
 
 def save_weights(weights_list, biases_list, fname='weights_and_biases'):
@@ -718,3 +719,21 @@ def classify_on_fly_merged(coefs1, intercepts1, layers1, coefs2, intercepts2, la
         #results.extend(y)
         results.append(y) # y can be multi-class
     return np.array(results)
+
+def nn_accuracy(pred_y, test_y):
+    # pred_y - output (prior to softmax) of neural network
+    # test_y - the true classes
+    #
+    # convert to 0 or 1 prediction (assuming a single class)
+    pred_y = np.where(pred_y[:,0] > 0, 1, 0)
+    acc = accuracy_score(test_y, pred_y)
+    return acc
+
+def nn_log_loss(pred_y, test_y):
+    # pred_y - output (prior to softmax) of neural network
+    # test_y - the true classes
+    #
+    # Calculate output after softmax (between 0 and 1) (assuming a single class)
+    pred_y = scipy.special.softmax(pred_y)
+    loss = log_loss(test_y, pred_y)
+    return loss
