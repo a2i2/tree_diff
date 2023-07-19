@@ -6,6 +6,8 @@
 #SBATCH --partition=cpu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=anupam.chaudhuri@deakin.edu.au
 
 module purge
 module load Anaconda3
