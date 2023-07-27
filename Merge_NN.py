@@ -168,19 +168,23 @@ def volume_weighted_output(A, B):
     # A wide merge error has occurred.  Qhull has produced a wide facet due to facet merges and vertex merges.
     # This usually occurs when the input is nearly degenerate and substantial merging has occurred.
     # See http://www.qhull.org/html/qh-impre.htm#limit
+    try:
+        hull_f = ConvexHull(vertices_f, qhull_options = 'Q12')
+        # The volume of the convex polytope is stored in the 'volume' attribute of the ConvexHull object
+        volume_f = hull_f.volume
+        hull_g = ConvexHull(vertices_g, qhull_options = 'Q12')
+        volume_g = hull_g.volume
 
-    hull_f = ConvexHull(vertices_f, qhull_options = 'Q12')
-    # The volume of the convex polytope is stored in the 'volume' attribute of the ConvexHull object
-    volume_f = hull_f.volume
-    hull_g = ConvexHull(vertices_g, qhull_options = 'Q12')
-    volume_g = hull_g.volume
+        weight_f = volume_f/(volume_f + volume_g) # depends on volume (scalar)
+        weight_g = volume_g/(volume_f + volume_g)
 
-    weight_f = volume_f/(volume_f + volume_g) # depends on volume (scalar)
-    weight_g = volume_g/(volume_f + volume_g)
-
-    A_h = A_f * weight_f + A_g * weight_g
-    B_h = B_f * weight_f + B_g * weight_g
-
+        A_h = A_f * weight_f + A_g * weight_g
+        B_h = B_f * weight_f + B_g * weight_g
+    except scipy.spatial._qhull.QhullError as e:
+        print("Warning: Caught QHullError: {e}")
+        # couldn't do a volume merge for this region, so do a global average merge instead
+        A_h = (A_f +A_g)/2
+        B_h = (B_f +B_g)/2
 
     return A_h, B_h
 

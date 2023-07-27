@@ -142,8 +142,8 @@ X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # cut down amount of training data so runs quickly
-X_train = X_train[:1000]
-y_train = y_train[:1000]
+# X_train = X_train[:1000]
+# y_train = y_train[:1000]
 
 save_data(X_test, y_test, 'data_higgs')
 

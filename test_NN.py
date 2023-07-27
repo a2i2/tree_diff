@@ -17,10 +17,10 @@ bounded_test_y = test_y[
 ]
 
 # just test on a subset of the data
-# bounded_test_x = bounded_test_x[:5000]
-# bounded_test_y = bounded_test_y[:5000]
-bounded_test_x = bounded_test_x[:5]
-bounded_test_y = bounded_test_y[:5]
+bounded_test_x = bounded_test_x[:5000]
+bounded_test_y = bounded_test_y[:5000]
+# bounded_test_x = bounded_test_x[:5]
+# bounded_test_y = bounded_test_y[:5]
 
 def try_stagegy(strategy, coefs1, intercepts1, coefs2, intercepts2):
     pred_y = classify_on_fly_merged(
