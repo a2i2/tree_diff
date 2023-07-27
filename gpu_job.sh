@@ -10,5 +10,5 @@
 
 module purge
 module load Anaconda3
-source activate merge
+source activate tensorflow-gpu
 python High_boson.py
