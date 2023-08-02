@@ -71,6 +71,10 @@ def rand_initialisation(X_train, X_test, y_train, y_test, fname):
 
     save_weights(weights_list2, biases_list2, f'weights_and_biases_{fname}2')
 
+    save_data(X_train, y_train, f'train_data_higgs_{fname}_1')
+    save_data(X_train, y_train, f'train_data_higgs_{fname}_2')
+
+
 def rand_subsets(X_train, X_test, y_train, y_test, fname, random_state = 32, split = 0.5):
 
     X_train1, X_train2, y_train1, y_train2 = train_test_split(X_train, y_train, test_size= split, random_state=random_state)
@@ -115,6 +119,9 @@ def rand_subsets(X_train, X_test, y_train, y_test, fname, random_state = 32, spl
             biases_list2.append(biases)
 
     save_weights(weights_list2, biases_list2, f'weights_and_biases_{fname}2')
+
+    save_data(X_train1, y_train1, f'train_data_higgs_{fname}_1')
+    save_data(X_train2, y_train2, f'train_data_higgs_{fname}_2')
 
 
 higgs_boson_train = pd.read_csv("notebooks/higgs-boson/training.csv")

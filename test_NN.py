@@ -32,6 +32,14 @@ def try_stagegy(strategy, coefs1, intercepts1, coefs2, intercepts2):
 
     return acc, loss
 
+# def try_data_density(strategy, coefs1, intercepts1, coefs2, intercepts2):
+#     pred_y = ...
+
+#     acc = nn_accuracy(pred_y, bounded_test_y)
+#     loss = nn_log_loss(pred_y, bounded_test_y)
+
+#     return acc, loss
+
 def try_unmerged(coefs, intercepts):
     pred_y = classify_on_fly(
     coefs, intercepts, 3, bounded_test_x)

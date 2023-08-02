@@ -21,7 +21,7 @@ from sklearn.preprocessing import MinMaxScaler
 from mpl_toolkits.mplot3d import Axes3D
 import plotly.express as px
 from sklearn.metrics import accuracy_score, log_loss
-
+from collections import defaultdict
 
 def save_weights(weights_list, biases_list, fname='weights_and_biases'):
     weights_and_biases_dict = {f'weights_{i}': weights for i, weights in enumerate(weights_list)}
@@ -181,7 +181,7 @@ def volume_weighted_output(A, B):
         A_h = A_f * weight_f + A_g * weight_g
         B_h = B_f * weight_f + B_g * weight_g
     except scipy.spatial._qhull.QhullError as e:
-        print("Warning: Caught QHullError: {e}")
+        print(f"Warning: Caught QHullError: {e}")
         # couldn't do a volume merge for this region, so do a global average merge instead
         A_h = (A_f +A_g)/2
         B_h = (B_f +B_g)/2
@@ -723,6 +723,36 @@ def classify_on_fly_merged(coefs1, intercepts1, layers1, coefs2, intercepts2, la
         #results.extend(y)
         results.append(y) # y can be multi-class
     return np.array(results)
+
+
+def compute_volume(decision_boundary):
+    vertices_f = decision_boundary.vertices
+    try:
+        hull_f = ConvexHull(vertices_f, qhull_options = 'Q12')
+        # The volume of the convex polytope is stored in the 'volume' attribute of the ConvexHull object
+        volume = hull_f.volume
+    except scipy.spatial._qhull.QhullError as e:
+        print(f"Warning: Caught QHullError: {e}")
+        # couldn't do a volume merge for this region, so do a global average merge instead
+        volume = float('nan')
+    return volume
+
+def tabulate_points_in_regions(coefs, intercepts, layers, points):
+    boundariesX_to_points = defaultdict(list)
+    boundariesX_to_volume = {}
+    
+    for point in points:
+        print(point)
+        decision_space1, _ = find_region(coefs, intercepts, layers, point)
+        X = decision_space1.boundaries[0] # only one boundary for find_region
+        boundariesX_to_points[X.label].append(point)
+        
+        # add to volumes table:
+        if X.label not in boundariesX_to_volume:
+            boundariesX_to_volume[X.label] = compute_volume(X)
+
+    return boundariesX_to_points, boundariesX_to_volume
+
 
 def nn_accuracy(pred_y, test_y):
     # pred_y - output (prior to softmax) of neural network
