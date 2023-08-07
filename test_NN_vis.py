@@ -42,7 +42,7 @@ def compare_dist_vis(fname):
     # bounded_X_train1 = bounded_X_train1[:5000]
     # bounded_X_train2 = bounded_X_train2[:5000]
 
-    compute_volume = False # for speed, turn off volume calculation
+    #compute_volume = False # for speed, turn off volume calculation
     boundaries1_to_points, boundaries1_to_volume = tabulate_points_in_regions(coefs1, intercepts1, 3, bounded_X_train1, compute_volume)
     boundaries2_to_points, boundaries2_to_volume = tabulate_points_in_regions(coefs2, intercepts2, 3, bounded_X_train2, compute_volume)
 
