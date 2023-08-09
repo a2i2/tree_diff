@@ -743,7 +743,6 @@ def classify_on_fly_merged(coefs1, intercepts1, layers1, coefs2, intercepts2, la
         results.append(y) # y can be multi-class
     return np.array(results)
 
-
 def compute_volume(decision_boundary):
     vertices_f = decision_boundary.vertices
     try:
@@ -778,6 +777,49 @@ def tabulate_points_in_regions(coefs, intercepts, layers, points, compute_volume
 
     return boundariesX_to_points, boundariesX_to_volume
 
+def extract_merge_attributes(coefs, intercepts, layers, training_points, points):
+    # precompute number of training points in each region
+    boundariesX_to_training_points, _ = tabulate_points_in_regions(coefs, intercepts, layers, training_points, compute_volume = False)
+
+    # used to cache boundaries if examining the same region twice
+    label_to_boundary = {}
+    # used to cache volume if examining the same region twice
+    label_to_volume = {}
+    results_output = []
+    results_volume = []
+    results_num_training_points = []
+    
+    for point in points:
+        print(point)
+        X_label = find_pattern_point(coefs, intercepts, layers, point)
+        
+        # add to volumes table:
+        if X_label not in label_to_boundary:
+            decision_space1, _ = find_region(coefs, intercepts, layers, point)
+            X = decision_space1.boundaries[0] # only one boundary for find_region
+            label_to_boundary[X_label] = X
+        
+        if X_label not in label_to_volume:
+            label_to_volume[X_label] = compute_volume(label_to_boundary[X_label])
+        
+        # output volume attribute for region point is in
+        volume = label_to_volume[X_label]
+        results_volume.append(volume)
+
+        if X_label in boundariesX_to_training_points:
+            num_training_points = len(boundariesX_to_training_points[X_label])
+        else:
+            # no training points in this region
+            num_training_points = 0
+
+        # output no training points for region point is in
+        results_num_training_points.append(num_training_points)
+
+        # output prediction for point
+        pred_y = get_boundary_output(label_to_boundary[X_label], point)
+        results_output.append(pred_y)
+
+    return results_output, results_volume, results_num_training_points
 
 def nn_accuracy(pred_y, test_y):
     # pred_y - output (prior to softmax) of neural network

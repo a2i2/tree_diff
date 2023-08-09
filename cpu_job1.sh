@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name="Merging Neural network"
-#SBATCH --output=cpu_job.out
-#SBATCH --error=cpu_job.err
+#SBATCH --job-name="Merging Neural network 1"
+#SBATCH --output=cpu_job1.out
+#SBATCH --error=cpu_job1.err
 #SBATCH --nodes=1
 #SBATCH --partition=cpu
 #SBATCH --ntasks=1
@@ -12,4 +12,4 @@
 module purge
 module load Anaconda3
 source activate merge
-python test_NN.py
+python test_NN.py randinit_higgs
