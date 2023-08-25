@@ -835,6 +835,7 @@ def nn_log_loss(pred_y, test_y):
     # test_y - the true classes
     #
     # Calculate output after softmax (between 0 and 1) (assuming a single class)
+    # TODO: Is this a bug? Should use sigmoid instead?
     pred_y = scipy.special.softmax(pred_y)
     loss = log_loss(test_y, pred_y)
     return loss

@@ -4,7 +4,13 @@ import cdd
 import pandas as pd
 import sys
 
-test_x, test_y = load_data('data_higgs')
+if len(sys.argv) > 2:
+    test_file = sys.argv[2]
+    test_x, test_y = load_data(f'{test_file}')
+    cust_test_name = f"_{test_file}"
+else:
+    test_x, test_y = load_data('data_higgs')
+    cust_test_name = ""
 
 #decision_space_1_region = find_region(coefs1, intercepts1, 1, point)
 #plot_decision_space_nn(decision_space_1_region,0,False)
@@ -65,7 +71,7 @@ def compare_merge(fname):
     }
 
     df = pd.DataFrame(data)
-    df.to_csv(f"merge_results_{fname}.csv")
+    df.to_csv(f"merge_results_{fname}{cust_test_name}.csv")
 
 
 def compute_merge_table(fname):
