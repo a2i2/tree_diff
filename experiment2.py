@@ -23,11 +23,11 @@ from tree_diff.conversion import *
 
 
 # Create subsequent batches of dataset  
-def create_batches(X, y, n=2):
+def create_batches(X, y, n=2, max_batch_size=float('inf')):
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=2)
 
     num_batches = n
-    batch_size = len(X_train) // num_batches
+    batch_size = min(len(X_train) // num_batches, max_batch_size)
 
     # Data is already shuffled (so no need to shuffle again)
     # # Shuffle the dataframe
@@ -131,30 +131,57 @@ def compute_performance(model_names, batches, features, X_test, y_test):
     if 'efdt' in model_names:
         from river import tree
 
-        model_batch = tree.ExtremelyFastDecisionTreeClassifier()
+        model_batch = tree.ExtremelyFastDecisionTreeClassifier(
+            leaf_prediction = 'mc'
+        )
        
         metric = metrics.Accuracy()
         evaluate.progressive_val_score(stream.iter_pandas(X_batch_train, y_batch_train), model_batch, metric)
         
+        print(model_batch)
+        print(model_batch.summary)
+        g = model_batch.draw()
+        print(g)
+        print(type(g))
+        g.render('out1', view=True)
+        print(model_batch.to_dataframe())
+
+
         y_start_pred = []
         for x,y in stream.iter_pandas(X_batch_test,y_batch_test):
             y_start_pred.append(model_batch.predict_one(x))
         batch_accuracy = np.mean(y_start_pred == y_batch_test)
         batch1_rules = Ruleset(river_extract_rules(model_batch._root,river_children, river_is_leaf))
 
+        pd.DataFrame({"y_start_pred":y_start_pred, "y_batch_test":y_batch_test}).to_csv("eval1.csv")
+
         # TODO: Test that this is updating the model with additional data rather than starting from scratch
         evaluate.progressive_val_score(stream.iter_pandas(X_batch_two_train, y_batch_two_train), model_batch, metric)
 
+        print(model_batch)
+        print(model_batch.summary)
+        g = model_batch.draw()
+        print(g)
+        print(type(g))
+        g.render('out2', view=True)
+        print(model_batch.to_dataframe())
+                
         y_start_pred = []
         for x,y in stream.iter_pandas(X_batch_two_test,y_batch_two_test):
-            y_start_pred.append(model_batch.predict_one(x))
+            p = model_batch.predict_one(x)
+            y_start_pred.append(p)
+            print("===")
+            print(p)
+            print(model_batch.predict_proba_one(x))
+            print(model_batch.debug_one(x))
         full_accuracy = np.mean(y_start_pred == y_batch_two_test)
         batch2_rules = Ruleset(river_extract_rules(model_batch._root,river_children, river_is_leaf))
-
 
         #import pdb; pdb.set_trace()
         accuracy.append({'alg': 'efdt', 'batch_one': batch_accuracy, 'batch_two': full_accuracy})
         
+        pd.DataFrame({"y_start_pred":y_start_pred, "y_batch_test":y_batch_two_test}).to_csv("eval2.csv")
+                
         try:
             similarity.append({'alg': 'efdt', 'similarity': rule_set_similarity(batch1_rules, batch2_rules)})
         except ZeroDivisionError as e:
@@ -162,8 +189,6 @@ def compute_performance(model_names, batches, features, X_test, y_test):
             print(f"Warn: caught {e}")
             similarity.append({'alg': 'efdt', 'similarity': float('nan')})
 
-            
-        
 
     return pd.DataFrame(accuracy), pd.DataFrame(similarity)
 
@@ -172,7 +197,8 @@ def process(datapath, label, columns):
     df = pd.read_csv(datapath, names=columns)
     #df = df.sample(frac = 0.0001) # 1100 rows out of 11 million
     features = [l for l in list(df.columns) if not l == "prediction"] 
-    batches, X_test, y_test = create_batches(df[features],df["prediction"],2)
+    #batches, X_test, y_test = create_batches(df[features],df["prediction"],2, 375) # TEST
+    batches, X_test, y_test = create_batches(df[features],df["prediction"],2) # TEST
     model_names = ['keep-regrow', 'tree-retrain', 'efdt']
     #model_names = ['efdt']
     accuracy_df, similarity_df = compute_performance(model_names, batches, features, X_test, y_test)
@@ -182,4 +208,6 @@ def process(datapath, label, columns):
 if __name__ == "__main__":
     #process("HIGGS.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
     #process("HIGGS_simp400.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
-    process("HIGGS_simp1000.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
+    #process("HIGGS_simp1000.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
+    process("HIGGS_simp.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
+    #process("HIGGS_simp100000.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
