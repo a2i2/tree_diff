@@ -4,7 +4,6 @@ from math import log2
 from dataclasses import dataclass, field
 
 from functools import partial
-from queue import deque
 from enum import Enum
 from collections import deque
 

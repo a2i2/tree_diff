@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from tree_diff.tree_ruleset_conversion import *
 from tree_diff.similar_tree import * 
 from tree_diff.conversion import * 
-
+import tree_diff.tree_metrics as tree_metrics
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf')):
@@ -92,7 +92,12 @@ def compute_performance(model_names, batches, features, X_test, y_test):
         full_y_pred = [full_clf.predict(X_batch_two_test_np[i]) for i in range(0, X_batch_two_test_np.shape[0])]
         full_accuracy = np.mean(full_y_pred == y_batch_two_test_np)
         
-        accuracy.append({'alg': 'keep-regrow', 'batch_one': batch_accuracy, 'batch_two': full_accuracy})
+        batch_one_nodes = tree_metrics.nodes(batch_tree)
+        batch_two_nodes = tree_metrics.nodes(full_clf)
+        tree_metrics.save_tree(batch_tree, 'keep-regrow_batch_one')
+        tree_metrics.save_tree(full_clf, 'keep-regrow_batch_two')
+        accuracy.append({'alg': 'keep-regrow', 'batch_one': batch_accuracy, 'batch_two': full_accuracy,
+                         'batch_one_nodes': batch_one_nodes, 'batch_two_nodes': batch_two_nodes})
 
     if 'tree-retrain' in model_names:
         from tree_diff import tree, keep_regrow_alg
@@ -126,7 +131,12 @@ def compute_performance(model_names, batches, features, X_test, y_test):
         full_y_pred = [full_clf.predict(X_batch_two_test_np[i]) for i in range(0, X_batch_two_test_np.shape[0])]
         full_accuracy = np.mean(full_y_pred == y_batch_two_test_np)
         
-        accuracy.append({'alg': 'tree-retrain', 'batch_one': batch_accuracy, 'batch_two': full_accuracy})
+        batch_one_nodes = tree_metrics.nodes(batch_tree)
+        batch_two_nodes = tree_metrics.nodes(full_clf)
+        tree_metrics.save_tree(batch_tree, 'tree-retrain_batch_one')
+        tree_metrics.save_tree(full_clf, 'tree-retrain_batch_two')
+        accuracy.append({'alg': 'tree-retrain', 'batch_one': batch_accuracy, 'batch_two': full_accuracy,
+                         'batch_one_nodes': batch_one_nodes, 'batch_two_nodes': batch_two_nodes})
 
     if 'efdt' in model_names:
         from river import tree
@@ -138,13 +148,13 @@ def compute_performance(model_names, batches, features, X_test, y_test):
         metric = metrics.Accuracy()
         evaluate.progressive_val_score(stream.iter_pandas(X_batch_train, y_batch_train), model_batch, metric)
         
-        print(model_batch)
-        print(model_batch.summary)
-        g = model_batch.draw()
-        print(g)
-        print(type(g))
-        g.render('out1', view=True)
-        print(model_batch.to_dataframe())
+        # print(model_batch)
+        # print(model_batch.summary)
+        # g = model_batch.draw()
+        # print(g)
+        # print(type(g))
+        # g.render('out1', view=True)
+        # print(model_batch.to_dataframe())
 
 
         y_start_pred = []
@@ -154,33 +164,41 @@ def compute_performance(model_names, batches, features, X_test, y_test):
         batch1_rules = Ruleset(river_extract_rules(model_batch._root,river_children, river_is_leaf))
 
         pd.DataFrame({"y_start_pred":y_start_pred, "y_batch_test":y_batch_test}).to_csv("eval1.csv")
+        tree_metrics.river_save_tree(model_batch, 'efdt_batch_one')
+        batch_one_nodes = tree_metrics.river_nodes(model_batch)
 
         # TODO: Test that this is updating the model with additional data rather than starting from scratch
         evaluate.progressive_val_score(stream.iter_pandas(X_batch_two_train, y_batch_two_train), model_batch, metric)
 
-        print(model_batch)
-        print(model_batch.summary)
-        g = model_batch.draw()
-        print(g)
-        print(type(g))
-        g.render('out2', view=True)
-        print(model_batch.to_dataframe())
+        # print(model_batch)
+        # print(model_batch.summary)
+        # g = model_batch.draw()
+        # print(g)
+        # print(type(g))
+        # g.render('out2', view=True)
+        # print(model_batch.to_dataframe())
+
                 
         y_start_pred = []
         for x,y in stream.iter_pandas(X_batch_two_test,y_batch_two_test):
             p = model_batch.predict_one(x)
             y_start_pred.append(p)
-            print("===")
-            print(p)
-            print(model_batch.predict_proba_one(x))
-            print(model_batch.debug_one(x))
+            # print("===")
+            # print(p)
+            # print(model_batch.predict_proba_one(x))
+            # print(model_batch.debug_one(x))
         full_accuracy = np.mean(y_start_pred == y_batch_two_test)
         batch2_rules = Ruleset(river_extract_rules(model_batch._root,river_children, river_is_leaf))
 
+        tree_metrics.river_save_tree(model_batch, 'efdt_batch_two')
+        batch_two_nodes = tree_metrics.river_nodes(model_batch)
+        
         #import pdb; pdb.set_trace()
-        accuracy.append({'alg': 'efdt', 'batch_one': batch_accuracy, 'batch_two': full_accuracy})
+        accuracy.append({'alg': 'efdt', 'batch_one': batch_accuracy, 'batch_two': full_accuracy,
+                         'batch_one_nodes': batch_one_nodes, 'batch_two_nodes': batch_two_nodes})
         
         pd.DataFrame({"y_start_pred":y_start_pred, "y_batch_test":y_batch_two_test}).to_csv("eval2.csv")
+
                 
         try:
             similarity.append({'alg': 'efdt', 'similarity': rule_set_similarity(batch1_rules, batch2_rules)})
@@ -208,6 +226,6 @@ def process(datapath, label, columns):
 if __name__ == "__main__":
     #process("HIGGS.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
     #process("HIGGS_simp400.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
-    #process("HIGGS_simp1000.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
-    process("HIGGS_simp.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
+    process("HIGGS_simp1000.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
+    #process("HIGGS_simp.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
     #process("HIGGS_simp100000.csv", "prediction", ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"])
