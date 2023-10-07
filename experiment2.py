@@ -17,6 +17,8 @@ from river import tree as river_tree
 from river import stream
 import matplotlib.pyplot as plt
 import time
+import sys
+import traceback
 
 from tree_diff.tree_ruleset_conversion import *
 from tree_diff.similar_tree import * 
@@ -25,7 +27,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out3"
+OUT_DIR = "out5"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -61,21 +63,25 @@ def compute_performance(model_names, batches, features, X_test, y_test, datasetn
             accuracy += eval_efdt(batches, features, X_test, y_test, datasetname)
         except Exception as e:
             print(f"Caught exception {e}")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
+
 
     if 'keep-regrow' in model_names:
         try:
             accuracy += eval_keep_regrow(batches, features, X_test, y_test, datasetname)
         except Exception as e:
             print(f"Caught exception {e}")
-            
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)            
 
     if 'tree-retrain' in model_names:
         try:
             accuracy += eval_tree_retrain(batches, features, X_test, y_test, datasetname)
         except Exception as e:
             print(f"Caught exception {e}")
-
-
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
 
     return pd.DataFrame(accuracy)
 
@@ -379,8 +385,8 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
 
 if __name__ == "__main__":
     BATCH_SIZE = 1000
-    TEST_SIZE = 100000
-    #TEST_SIZE = 10000
+    #TEST_SIZE = 100000
+    TEST_SIZE = 10000
 
     # need to shuffle
     process(

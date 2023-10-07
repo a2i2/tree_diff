@@ -83,8 +83,7 @@ def best_pred(y, classes):
 
 
 def regrow(X, y, node, max_depth, metadata):
-    # TODO: Option to switch between sklearn and our own implementation
-    _X, _y = filter_data(X, y, node)
+    # X, y must be filtered to the current node
     max_depth = max_depth - node.depth
     
     if max_depth <= 0:
@@ -92,7 +91,7 @@ def regrow(X, y, node, max_depth, metadata):
         tree = DecisionNode(None, 0, [])
     else:
         # sklearn splits are non-deterministic unless we set random_state
-        tree = metadata.grow_func(_X, _y, max_depth, metadata)
+        tree = metadata.grow_func(X, y, max_depth, metadata)
 
     tree = to_cost_tree(tree)
     return tree
@@ -156,26 +155,28 @@ def prune(X, y, node, metadata):
 
 def reduce(X, y, node, max_depth, metadata):
     # node: The original tree (costs of original tree must be correct, call `recost` function beforehand)
-    # X, y: All data (may optionally be filtered to the current node)
+    # X, y must be filtered to the current node
+
     if node.is_leaf():
         keep_tree = CostNode(
             node.label, node.node_id, node.value, node.impurity,
             None, [], [], OLD, node.total_cost
         )
     else:
-        new_children = [reduce(X, y, child, max_depth, metadata) for child in node.children]
         # We do not pay changed node penality if retaining structure of old tree.
         keep_tree = CostNode(
             node.label, node.node_id, node.value, node.impurity,
             None, [], [], OLD, node.total_cost
         )
-        for child, condition in zip(new_children, node.conditions):
-            keep_tree.add_child(condition, child)
+        for child, condition in zip(node.children, node.conditions):
+            _X, _y = filter_data(X, y, child)
+            new_child = reduce(_X, _y, child, max_depth, metadata)
+            keep_tree.add_child(condition, new_child)
         keep_tree.recost(metadata)
 
     regrow_tree = regrow(X, y, node, max_depth, metadata)
-    _X, _y = filter_data(X, y, node) # need to ensure that we filter data to just the node we are pruning
-    regrow_tree = prune(_X, _y, regrow_tree, metadata)
+    # assumption of prune: data filtered to just the node we are pruning
+    regrow_tree = prune(X, y, regrow_tree, metadata)
 
     if keep_tree.total_cost <= regrow_tree.total_cost:
         return keep_tree
