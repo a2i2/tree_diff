@@ -117,18 +117,28 @@ def rule_similarity(rule1: Rule, subs1, rule2: Rule, subs2):
 
 # Not symmetrical
 def rule_set_similarity(ruleset1: Ruleset, ruleset2: Ruleset):
-    substructure1 = create_substructures(ruleset1)
-    substructure2 = create_substructures(ruleset2)
+    try:
+        substructure1 = create_substructures(ruleset1)
+        substructure2 = create_substructures(ruleset2)
 
-    l = len(ruleset1.rules)
+        l = len(ruleset1.rules)
 
-    sim_d_list = []
-    for rule1, subs1 in substructure1:
-        rule_sims = []
+        sim_d_list = []
+        for rule1, subs1 in substructure1:
+            rule_sims = []
 
-        for rule2, subs2 in substructure2:
-            rule_sims.append(rule_similarity(rule1, subs1, rule2, subs2))
+            for rule2, subs2 in substructure2:
+                rule_sims.append(rule_similarity(rule1, subs1, rule2, subs2))
 
-        sim_d_list.append(max(rule_sims))
+            sim_d_list.append(max(rule_sims))
 
-    return sum(sim_d_list) / l
+        return sum(sim_d_list) / l
+    except ZeroDivisionError as e:
+        # This can be the case if both rulesets have 0 length
+        print(f"Warn: caught {e} in rule_set_similarity")
+        return float('nan')
+    except Exception:
+        # Catch exception thrown when no nodes. Todo FIX underlying bug
+        print(f"Warn: caught {e} in rule_set_similarity")
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        return float('nan')

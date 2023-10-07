@@ -27,7 +27,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out15"
+OUT_DIR = "out16"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -62,7 +62,7 @@ def compute_performance(model_names, batches, features, X_test, y_test, datasetn
         try:
             accuracy += eval_efdt(batches, features, X_test, y_test, datasetname)
         except Exception as e:
-            print(f"Caught exception {e}")
+            print(f"Caught exception {e} in efdt")
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
 
@@ -71,7 +71,7 @@ def compute_performance(model_names, batches, features, X_test, y_test, datasetn
         try:
             accuracy += eval_keep_regrow(batches, features, X_test, y_test, datasetname)
         except Exception as e:
-            print(f"Caught exception {e}")
+            print(f"Caught exception {e} in keep-regrow")
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)            
 
@@ -79,7 +79,7 @@ def compute_performance(model_names, batches, features, X_test, y_test, datasetn
         try:
             accuracy += eval_tree_retrain(batches, features, X_test, y_test, datasetname)
         except Exception as e:
-            print(f"Caught exception {e}")
+            print(f"Caught exception {e} in tree-retrain")
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
 
@@ -218,19 +218,26 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
         X_batch_train = pd.concat([X_batch_train, X_batch_two_train], axis=0)
         y_batch_train = pd.concat([y_batch_train, y_batch_two_train], axis=0)
         
-        print("Start of train block.")
-        start_time = time.time()  # Record the start time
-        full_clf = keep_regrow_alg.grow_tree(
-            pd.DataFrame(X_batch_train, columns=features),
-            y_batch_train,
-            alpha = 10,
-            beta = 0,
-            grow_func = keep_regrow_alg.sklearn_grow_func,
-            max_depth = float('inf')
-        )
-        end_time = time.time()    # Record the end time
-        print("End of train block.")
-        train_duration = end_time - start_time  # Calculate the duration
+        try:
+            print("Start of train block.")
+            start_time = time.time()  # Record the start time
+            full_clf = keep_regrow_alg.grow_tree(
+                pd.DataFrame(X_batch_train, columns=features),
+                y_batch_train,
+                alpha = 10,
+                beta = 0,
+                grow_func = keep_regrow_alg.sklearn_grow_func,
+                max_depth = float('inf')
+            )
+            end_time = time.time()    # Record the end time
+            print("End of train block.")
+            train_duration = end_time - start_time  # Calculate the duration
+        except:
+            # Catch bug in EFDT. Todo file bug report
+            print(f"Warn: caught {e} when training EFDT on {datasetname} batch {batch_number}")
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
+            # just log results for iterations so far
+            return accuracy
 
 
         similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
