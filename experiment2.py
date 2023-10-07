@@ -27,7 +27,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out6"
+OUT_DIR = "out8"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -102,7 +102,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
         alpha = 30,
         beta = 0,
         grow_func = keep_regrow_alg.sklearn_grow_func,
-        max_depth = 4
+        max_depth = float('inf')
     )
     end_time = time.time()    # Record the end time
     print("End of train block.")
@@ -144,7 +144,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
             alpha = 30,
             beta = 1,
             grow_func = keep_regrow_alg.sklearn_grow_func,
-            max_depth = 4
+            max_depth = float('inf')
         )
         end_time = time.time()    # Record the end time
         print("End of train block.")
@@ -351,9 +351,9 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
 def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf'), max_test_size=float('inf'), datasetname='dataset'):
     #runs = 30
     #runs = 4
-    runs = 1
-    #batches_per_run = 8
-    batches_per_run = 2
+    runs = 2
+    batches_per_run = 8
+    #batches_per_run = 2
     print(f"=== Processing {datasetname} ===")
 
     if columns:
@@ -385,8 +385,8 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
 
 if __name__ == "__main__":
     BATCH_SIZE = 1000
-    #TEST_SIZE = 100000
-    TEST_SIZE = 10000
+    TEST_SIZE = 100000
+    #TEST_SIZE = 10000
 
     # need to shuffle
     process(
@@ -400,7 +400,7 @@ if __name__ == "__main__":
     # with 2,000 points tree gets left as-is by keep-regrow
     #process("../datasets/skin+segmentation/Skin_NonSkin.txt", "CLASS", ["B","G","R","CLASS"], '\t', 2000)
 
-    exit()
+    #exit()
 
     process(
         f"{DATA_DIR}/higgs/HIGGS.csv",
