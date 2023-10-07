@@ -27,7 +27,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out14"
+OUT_DIR = "out15"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -99,7 +99,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
     batch_tree = keep_regrow_alg.grow_tree(
         pd.DataFrame(X_batch_train, columns=features),
         y_batch_train,
-        alpha = 30,
+        alpha = 10,
         beta = 0,
         grow_func = keep_regrow_alg.sklearn_grow_func,
         max_depth = float('inf')
@@ -141,7 +141,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
             pd.DataFrame(X_batch_train, columns=features),
             y_batch_train,
             old_tree = batch_tree,
-            alpha = 30,
+            alpha = 10,
             beta = 1,
             grow_func = keep_regrow_alg.sklearn_grow_func,
             max_depth = float('inf')
@@ -187,7 +187,7 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
     batch_tree = keep_regrow_alg.grow_tree(
         pd.DataFrame(X_batch_train, columns=features),
         y_batch_train,
-        alpha = 1,
+        alpha = 10,
         beta = 0,
         grow_func = keep_regrow_alg.sklearn_grow_func,
         max_depth = float('inf')
@@ -223,7 +223,7 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
         full_clf = keep_regrow_alg.grow_tree(
             pd.DataFrame(X_batch_train, columns=features),
             y_batch_train,
-            alpha = 1,
+            alpha = 10,
             beta = 0,
             grow_func = keep_regrow_alg.sklearn_grow_func,
             max_depth = float('inf')
@@ -367,8 +367,8 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
     batches, X_test, y_test = create_batches(df[features], df[label], batches_per_run * runs, max_batch_size, max_test_size)
     
     #model_names = ['efdt']
-    #model_names = ['efdt', 'keep-regrow', 'tree-retrain']
-    model_names = ['efdt', 'keep-regrow']
+    model_names = ['efdt', 'keep-regrow', 'tree-retrain']
+    #model_names = ['efdt', 'keep-regrow']
     #model_names = ['keep-regrow']
     
     print(f"X_test, {X_test.shape}, {X_test}")
