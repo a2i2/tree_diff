@@ -27,7 +27,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out5"
+OUT_DIR = "out6"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -143,7 +143,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
             old_tree = batch_tree,
             alpha = 30,
             beta = 1,
-            regrow_func = keep_regrow_alg.sklearn_grow_func,
+            grow_func = keep_regrow_alg.sklearn_grow_func,
             max_depth = 4
         )
         end_time = time.time()    # Record the end time
@@ -189,7 +189,7 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
         y_batch_train,
         alpha = 1,
         beta = 0,
-        regrow_func = keep_regrow_alg.sklearn_grow_func,
+        grow_func = keep_regrow_alg.sklearn_grow_func,
         max_depth = float('inf')
     )
     end_time = time.time()    # Record the end time
@@ -225,7 +225,7 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
             y_batch_train,
             alpha = 1,
             beta = 0,
-            regrow_func = keep_regrow_alg.sklearn_grow_func,
+            grow_func = keep_regrow_alg.sklearn_grow_func,
             max_depth = float('inf')
         )
         end_time = time.time()    # Record the end time
@@ -399,6 +399,8 @@ if __name__ == "__main__":
         "Skin")
     # with 2,000 points tree gets left as-is by keep-regrow
     #process("../datasets/skin+segmentation/Skin_NonSkin.txt", "CLASS", ["B","G","R","CLASS"], '\t', 2000)
+
+    exit()
 
     process(
         f"{DATA_DIR}/higgs/HIGGS.csv",
