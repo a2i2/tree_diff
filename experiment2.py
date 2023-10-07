@@ -16,6 +16,7 @@ from river import metrics
 from river import tree as river_tree
 from river import stream
 import matplotlib.pyplot as plt
+import time
 
 from tree_diff.tree_ruleset_conversion import *
 from tree_diff.similar_tree import * 
@@ -24,7 +25,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out"
+OUT_DIR = "out2"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -63,7 +64,7 @@ def compute_performance(model_names, batches, features, X_test, y_test, datasetn
 
     if 'keep-regrow' in model_names:
         try:
-            accuracy += eval_keep_regow(batches, features, X_test, y_test, datasetname)
+            accuracy += eval_keep_regrow(batches, features, X_test, y_test, datasetname)
         except Exception as e:
             print(f"Caught exception {e}")
             
@@ -79,29 +80,47 @@ def compute_performance(model_names, batches, features, X_test, y_test, datasetn
     return pd.DataFrame(accuracy)
 
 
-def eval_keep_regow(batches, features, X_test, y_test, datasetname):
+def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
     accuracy = []
     batch_number = 1
 
     X_batch_train, y_batch_train = batches[0]
     X_batch_test, y_batch_test = X_test, y_test
-            
+    
+    print("Start of train block.")
+    start_time = time.time()  # Record the start time
     # TODO: Infinite depth
     batch_tree = keep_regrow_alg.grow_tree(
         pd.DataFrame(X_batch_train, columns=features),
         y_batch_train,
         alpha = 1,
         beta = 0,
-        grow_func = keep_regrow_alg.sklearn_grow_func
+        grow_func = keep_regrow_alg.sklearn_grow_func,
+        max_depth = float('inf')
     )
+    end_time = time.time()    # Record the end time
+    print("End of train block.")
+    train_duration = end_time - start_time  # Calculate the duration
+
 
     X_batch_test_np = X_batch_test.to_numpy()
     y_batch_test_np = y_batch_test.to_numpy()
+    
+    print("Start of test block.")
+    start_time = time.time()  # Record the start time
+
     batch_y_pred = [batch_tree.predict(X_batch_test_np[i]) for i in range(0, y_batch_test_np.shape[0])]
+    
+    end_time = time.time()    # Record the end time
+    print("End of test block.")
+    test_duration = end_time - start_time  # Calculate the duration
+
+    
     batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
     tree_metrics.save_tree(batch_tree, f'{OUT_DIR}/keep-regrow_batch_1_{datasetname}')
     nodes = tree_metrics.nodes(batch_tree)
-    accuracy.append({'alg': 'keep-regrow', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan')})
+    accuracy.append({'alg': 'keep-regrow', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan'),
+                     'train-duration': train_duration, 'test-duration': test_duration})
     
     for (X_batch_two_train, y_batch_two_train) in batches[1:]:
         batch_number += 1
@@ -109,25 +128,40 @@ def eval_keep_regow(batches, features, X_test, y_test, datasetname):
         X_batch_train = pd.concat([X_batch_test, X_batch_two_train], axis=0)
         y_batch_train = pd.concat([y_batch_test, y_batch_two_train], axis=0)
         
+        print("Start of train block.")
+        start_time = time.time()  # Record the start time
+        # TODO: Infinite depth
         full_clf = keep_regrow_alg.grow_tree(
             pd.DataFrame(X_batch_train, columns=features),
             y_batch_train,
             old_tree = batch_tree,
             alpha = 1,
             beta = 1,
-            regrow_func = keep_regrow_alg.sklearn_grow_func
+            regrow_func = keep_regrow_alg.sklearn_grow_func,
+            max_depth = float('inf')
         )
-        
+        end_time = time.time()    # Record the end time
+        print("End of train block.")
+        train_duration = end_time - start_time  # Calculate the duration
+
         similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
 
         X_batch_test_np = X_batch_test.to_numpy()
         y_batch_test_np = y_batch_test.to_numpy()
+
+        print("Start of test block.")
+        start_time = time.time()  # Record the start time
         batch_y_pred = [full_clf.predict(X_batch_test_np[i]) for i in range(0, y_batch_test_np.shape[0])]
+        end_time = time.time()    # Record the end time
+        print("End of test block.")
+        test_duration = end_time - start_time  # Calculate the duration
+
         batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
         
         nodes = tree_metrics.nodes(full_clf)
         tree_metrics.save_tree(full_clf, f'{OUT_DIR}/keep-regrow_batch_{batch_number}_{datasetname}')
-        accuracy.append({'alg': 'keep-regrow', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': similarity})
+        accuracy.append({'alg': 'keep-regrow', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': similarity,
+                         'train-duration': train_duration, 'test-duration': test_duration})
         
         # next batch (current tree becomes the previous tree)
         batch_tree = full_clf
@@ -142,21 +176,35 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
     X_batch_train, y_batch_train = batches[0]
     X_batch_test, y_batch_test = X_test, y_test
 
+    print("Start of train block.")
+    start_time = time.time()  # Record the start time
     batch_tree = keep_regrow_alg.grow_tree(
         pd.DataFrame(X_batch_train, columns=features),
         y_batch_train,
         alpha = 1,
         beta = 0,
-        regrow_func = keep_regrow_alg.sklearn_grow_func
+        regrow_func = keep_regrow_alg.sklearn_grow_func,
+        max_depth = float('inf')
     )
+    end_time = time.time()    # Record the end time
+    print("End of train block.")
+    train_duration = end_time - start_time  # Calculate the duration
 
     X_batch_test_np = X_batch_test.to_numpy()
     y_batch_test_np = y_batch_test.to_numpy()
+
+    print("Start of test block.")
+    start_time = time.time()  # Record the start time
     batch_y_pred = [batch_tree.predict(X_batch_test_np[i]) for i in range(0, y_batch_test_np.shape[0])]
+    end_time = time.time()    # Record the end time
+    print("End of test block.")
+    test_duration = end_time - start_time  # Calculate the duration
+
     batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
     tree_metrics.save_tree(batch_tree, f'{OUT_DIR}/tree-retrain_batch_1_{datasetname}')
     nodes = tree_metrics.nodes(batch_tree)
-    accuracy.append({'alg': 'tree-retrain', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan')})
+    accuracy.append({'alg': 'tree-retrain', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan'),
+                     'train-duration': train_duration, 'test-duration': test_duration})
 
     for (X_batch_two_train, y_batch_two_train) in batches[1:]:
         batch_number += 1
@@ -164,25 +212,39 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
         X_batch_train = pd.concat([X_batch_test, X_batch_two_train], axis=0)
         y_batch_train = pd.concat([y_batch_test, y_batch_two_train], axis=0)
         
-
+        print("Start of train block.")
+        start_time = time.time()  # Record the start time
         full_clf = keep_regrow_alg.grow_tree(
             pd.DataFrame(X_batch_train, columns=features),
             y_batch_train,
             alpha = 1,
             beta = 0,
-            regrow_func = keep_regrow_alg.sklearn_grow_func
+            regrow_func = keep_regrow_alg.sklearn_grow_func,
+            max_depth = float('inf')
         )
+        end_time = time.time()    # Record the end time
+        print("End of train block.")
+        train_duration = end_time - start_time  # Calculate the duration
+
 
         similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
 
         X_batch_test_np = X_batch_test.to_numpy()
         y_batch_test_np = y_batch_test.to_numpy()
+        
+        print("Start of test block.")
+        start_time = time.time()  # Record the start time
         batch_y_pred = [full_clf.predict(X_batch_test_np[i]) for i in range(0, y_batch_test_np.shape[0])]
+        end_time = time.time()    # Record the end time
+        print("End of test block.")
+        test_duration = end_time - start_time  # Calculate the duration
+
         batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
         
         nodes = tree_metrics.nodes(full_clf)
         tree_metrics.save_tree(full_clf, f'{OUT_DIR}/tree-retrain_batch_{batch_number}_{datasetname}')
-        accuracy.append({'alg': 'tree-retrain', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': similarity})
+        accuracy.append({'alg': 'tree-retrain', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': similarity,
+                         'train-duration': train_duration, 'test-duration': test_duration})
         
         # next batch (current tree becomes the previous tree)
         batch_tree = full_clf
@@ -203,11 +265,22 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
    
     metric = metrics.Accuracy()
 
+    print("Start of train block.")
+    start_time = time.time()  # Record the start time
     evaluate.progressive_val_score(stream.iter_pandas(X_batch_train, y_batch_train), model_batch, metric)
+    end_time = time.time()    # Record the end time
+    print("End of train block.")
+    train_duration = end_time - start_time  # Calculate the duration
 
+    print("Start of test block.")
+    start_time = time.time()  # Record the start time
     y_start_pred = []
     for x,y in stream.iter_pandas(X_batch_test,y_batch_test):
         y_start_pred.append(model_batch.predict_one(x))
+    end_time = time.time()    # Record the end time
+    print("End of test block.")
+    test_duration = end_time - start_time  # Calculate the duration
+
     batch_accuracy = np.mean(y_start_pred == y_batch_test)
     batch1_rules = Ruleset(river_extract_rules(model_batch._root,river_children, river_is_leaf))
 
@@ -215,14 +288,22 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
     tree_metrics.river_save_tree(model_batch, f'{OUT_DIR}/efdt_batch_{batch_number}_{datasetname}')
     nodes = tree_metrics.river_nodes(model_batch)
     accuracy.append({'alg': 'efdt', 'batch': batch_number, 'acc': batch_accuracy,
-                     'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan')})
+                     'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan'),
+                     'train-duration': train_duration, 'test-duration': test_duration})
     
     for (X_batch_two_train, y_batch_two_train) in batches[1:]:
         batch_number += 1
 
+        print("Start of train block.")
+        start_time = time.time()  # Record the start time
         # TODO: Test that this is updating the model with additional data rather than starting from scratch
         evaluate.progressive_val_score(stream.iter_pandas(X_batch_two_train, y_batch_two_train), model_batch, metric)
-
+        end_time = time.time()    # Record the end time
+        train_duration = end_time - start_time  # Calculate the duration
+        print("End of train block.")
+        
+        print("Start of test block.")
+        start_time = time.time()  # Record the start time
         y_start_pred = []
         for x,y in stream.iter_pandas(X_batch_test, y_batch_test):
             p = model_batch.predict_one(x)
@@ -231,6 +312,10 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
             # print(p)
             # print(model_batch.predict_proba_one(x))
             # print(model_batch.debug_one(x))
+        end_time = time.time()    # Record the end time
+        print("End of test block.")
+        test_duration = end_time - start_time  # Calculate the duration
+
         batch_accuracy = np.mean(y_start_pred == y_batch_test)
         batch2_rules = Ruleset(river_extract_rules(model_batch._root, river_children, river_is_leaf))
 
@@ -246,7 +331,8 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
         
         #import pdb; pdb.set_trace()
         accuracy.append({'alg': 'efdt', 'batch': batch_number, 'acc': batch_accuracy,
-                         'nodes': nodes, 'dataset': datasetname, 'similarity': similarity})
+                         'nodes': nodes, 'dataset': datasetname, 'similarity': similarity,
+                         'train-duration': train_duration, 'test-duration': test_duration})
         
         #pd.DataFrame({"y_start_pred":y_start_pred, "y_batch_test":y_batch_two_test}).to_csv("eval2.csv")
 
@@ -258,8 +344,10 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
 
 def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf'), max_test_size=float('inf'), datasetname='dataset'):
     #runs = 30
-    runs = 4
-    batches_per_run = 8
+    #runs = 4
+    runs = 1
+    #batches_per_run = 8
+    batches_per_run = 2
     print(f"=== Processing {datasetname} ===")
 
     if columns:
@@ -273,7 +361,8 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
     batches, X_test, y_test = create_batches(df[features], df[label], batches_per_run * runs, max_batch_size, max_test_size)
     
     #model_names = ['efdt']
-    model_names = ['efdt', 'keep-regrow', 'tree-retrain']
+    #model_names = ['efdt', 'keep-regrow', 'tree-retrain']
+    model_names = ['efdt', 'keep-regrow']
     #model_names = ['keep-regrow']
     
     print(f"X_test, {X_test.shape}, {X_test}")

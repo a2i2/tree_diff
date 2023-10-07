@@ -31,6 +31,8 @@ def relabel(node, id_counter=1):
 
 def sklearn_grow_func(X, y, max_depth, metadata):
     # Sklearn implementation of tree growing
+    if max_depth == float('inf'):
+        max_depth = None # sklearn requires an integer (or none for unbounded)
     clf = sklearn.tree.DecisionTreeClassifier(max_depth=max_depth, random_state=0)
     clf = clf.fit(X, y)
     return sklearn_to_tree(clf, metadata.column_names)
