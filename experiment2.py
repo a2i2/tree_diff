@@ -60,33 +60,55 @@ def compute_performance(model_names, batches, features, X_test, y_test, datasetn
 
     if 'efdt' in model_names:
         try:
-            accuracy += eval_efdt(batches, features, X_test, y_test, datasetname)
+            accuracy += eval_efdt(batches, features, X_test, y_test, datasetname, 'efdt')
         except Exception as e:
             print(f"Caught exception {e} in efdt")
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
 
+    if 'vfdt' in model_names:
+        try:
+            accuracy += eval_efdt(batches, features, X_test, y_test, datasetname, 'vfdt')
+        except Exception as e:
+            print(f"Caught exception {e} in vfdt")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
 
     if 'keep-regrow' in model_names:
         try:
-            accuracy += eval_keep_regrow(batches, features, X_test, y_test, datasetname)
+            accuracy += eval_keep_regrow(batches, features, X_test, y_test, datasetname, 'keep-regrow')
         except Exception as e:
             print(f"Caught exception {e} in keep-regrow")
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback)            
-
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
+    
     if 'tree-retrain' in model_names:
         try:
-            accuracy += eval_tree_retrain(batches, features, X_test, y_test, datasetname)
+            accuracy += eval_keep_regrow(batches, features, X_test, y_test, datasetname, 'tree-retrain')
         except Exception as e:
             print(f"Caught exception {e} in tree-retrain")
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
 
+    # variations of keep-regrow or tree-retrain. Format: {alg}_{alpha}_{beta}
+    for model_name in model_names:
+        if '_' in model_name:
+            print(f"Custom variation: {model_name}")
+            alg, alpha, beta = model_name.split('_')
+            alpha = int(alpha)
+            beta = int(beta)
+            try:
+                accuracy += eval_keep_regrow(batches, features, X_test, y_test, datasetname, alg, alpha, beta)
+            except Exception as e:
+                print(f"Caught exception {e} in {model_name}")
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback)
+
     return pd.DataFrame(accuracy)
 
 
-def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
+def eval_keep_regrow(batches, features, X_test, y_test, datasetname, alg='keep-regrow', alpha=10, beta=1):
+    alg_name = f"{alg}_{alpha}_{beta}"
     accuracy = []
     batch_number = 1
 
@@ -99,8 +121,8 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
     batch_tree = keep_regrow_alg.grow_tree(
         pd.DataFrame(X_batch_train, columns=features),
         y_batch_train,
-        alpha = 10,
-        beta = 0,
+        alpha = alpha,
+        beta = 0, # no change penalty for first tree (else would double penalise)
         grow_func = keep_regrow_alg.sklearn_grow_func,
         max_depth = float('inf')
     )
@@ -123,9 +145,9 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
 
     
     batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
-    tree_metrics.save_tree(batch_tree, f'{OUT_DIR}/keep-regrow_batch_1_{datasetname}')
+    tree_metrics.save_tree(batch_tree, f'{OUT_DIR}/{alg_name}_batch_{batch_number}_{datasetname}')
     nodes = tree_metrics.nodes(batch_tree)
-    accuracy.append({'alg': 'keep-regrow', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan'),
+    accuracy.append({'alg': alg_name, 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan'),
                      'train-duration': train_duration, 'test-duration': test_duration})
     
     for (X_batch_two_train, y_batch_two_train) in batches[1:]:
@@ -137,15 +159,29 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
         print("Start of train block.")
         start_time = time.time()  # Record the start time
         # TODO: Infinite depth
-        full_clf = keep_regrow_alg.grow_tree(
-            pd.DataFrame(X_batch_train, columns=features),
-            y_batch_train,
-            old_tree = batch_tree,
-            alpha = 10,
-            beta = 1,
-            grow_func = keep_regrow_alg.sklearn_grow_func,
-            max_depth = float('inf')
-        )
+        if alg == 'keep-regrow':
+            full_clf = keep_regrow_alg.grow_tree(
+                pd.DataFrame(X_batch_train, columns=features),
+                y_batch_train,
+                old_tree = batch_tree,
+                alpha = alpha,
+                beta = beta,
+                grow_func = keep_regrow_alg.sklearn_grow_func,
+                max_depth = float('inf')
+            )
+        elif alg == 'tree-retrain':
+            # ignore old tree
+            full_clf = keep_regrow_alg.grow_tree(
+                pd.DataFrame(X_batch_train, columns=features),
+                y_batch_train,
+                alpha = alpha,
+                beta = 0, # ignore change penalty (beta) if retrain
+                grow_func = keep_regrow_alg.sklearn_grow_func,
+                max_depth = float('inf')
+            )
+        else:
+            raise Exception(f"Invalid param: alg={alg}")
+
         end_time = time.time()    # Record the end time
         print("End of train block.")
         train_duration = end_time - start_time  # Calculate the duration
@@ -154,7 +190,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
             similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
         except Exception as e:
             # Catch exception thrown when no nodes. Todo FIX underlying bug
-            print(f"Warn: caught {e} when calculating similarity")
+            print(f"Warn: caught {e} when calculating similarity for {alg_name}")
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
             similarity = float('nan')
@@ -172,8 +208,8 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
         batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
         
         nodes = tree_metrics.nodes(full_clf)
-        tree_metrics.save_tree(full_clf, f'{OUT_DIR}/keep-regrow_batch_{batch_number}_{datasetname}')
-        accuracy.append({'alg': 'keep-regrow', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': similarity,
+        tree_metrics.save_tree(full_clf, f'{OUT_DIR}/{alg_name}_batch_{batch_number}_{datasetname}')
+        accuracy.append({'alg': alg_name, 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': similarity,
                          'train-duration': train_duration, 'test-duration': test_duration})
         
         # next batch (current tree becomes the previous tree)
@@ -182,105 +218,23 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
     return accuracy
 
 
-def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
+def eval_efdt(batches, features, X_test, y_test, datasetname, alg='efdt'):
     accuracy = []
     batch_number = 1
 
     X_batch_train, y_batch_train = batches[0]
     X_batch_test, y_batch_test = X_test, y_test
 
-    print("Start of train block.")
-    start_time = time.time()  # Record the start time
-    batch_tree = keep_regrow_alg.grow_tree(
-        pd.DataFrame(X_batch_train, columns=features),
-        y_batch_train,
-        alpha = 10,
-        beta = 0,
-        grow_func = keep_regrow_alg.sklearn_grow_func,
-        max_depth = float('inf')
-    )
-    end_time = time.time()    # Record the end time
-    print("End of train block.")
-    train_duration = end_time - start_time  # Calculate the duration
-
-    X_batch_test_np = X_batch_test.to_numpy()
-    y_batch_test_np = y_batch_test.to_numpy()
-
-    print("Start of test block.")
-    start_time = time.time()  # Record the start time
-    batch_y_pred = [batch_tree.predict(X_batch_test_np[i]) for i in range(0, y_batch_test_np.shape[0])]
-    end_time = time.time()    # Record the end time
-    print("End of test block.")
-    test_duration = end_time - start_time  # Calculate the duration
-
-    batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
-    tree_metrics.save_tree(batch_tree, f'{OUT_DIR}/tree-retrain_batch_1_{datasetname}')
-    nodes = tree_metrics.nodes(batch_tree)
-    accuracy.append({'alg': 'tree-retrain', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan'),
-                     'train-duration': train_duration, 'test-duration': test_duration})
-
-    for (X_batch_two_train, y_batch_two_train) in batches[1:]:
-        batch_number += 1
-
-        X_batch_train = pd.concat([X_batch_train, X_batch_two_train], axis=0)
-        y_batch_train = pd.concat([y_batch_train, y_batch_two_train], axis=0)
-        
-        print("Start of train block.")
-        start_time = time.time()  # Record the start time
-        full_clf = keep_regrow_alg.grow_tree(
-            pd.DataFrame(X_batch_train, columns=features),
-            y_batch_train,
-            alpha = 10,
-            beta = 0,
-            grow_func = keep_regrow_alg.sklearn_grow_func,
-            max_depth = float('inf')
+    if alg == 'efdt':
+        model_batch = river_tree.ExtremelyFastDecisionTreeClassifier(
+            leaf_prediction = 'mc'
         )
-        end_time = time.time()    # Record the end time
-        print("End of train block.")
-        train_duration = end_time - start_time  # Calculate the duration
-
-        try:
-            similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
-        except Exception as e:
-            # Catch exception thrown when no nodes. Todo FIX underlying bug
-            print(f"Warn: caught {e} when calculating similarity")
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback)
-            similarity = float('nan')
-
-        X_batch_test_np = X_batch_test.to_numpy()
-        y_batch_test_np = y_batch_test.to_numpy()
-        
-        print("Start of test block.")
-        start_time = time.time()  # Record the start time
-        batch_y_pred = [full_clf.predict(X_batch_test_np[i]) for i in range(0, y_batch_test_np.shape[0])]
-        end_time = time.time()    # Record the end time
-        print("End of test block.")
-        test_duration = end_time - start_time  # Calculate the duration
-
-        batch_accuracy = np.mean(batch_y_pred == y_batch_test_np)
-        
-        nodes = tree_metrics.nodes(full_clf)
-        tree_metrics.save_tree(full_clf, f'{OUT_DIR}/tree-retrain_batch_{batch_number}_{datasetname}')
-        accuracy.append({'alg': 'tree-retrain', 'batch': batch_number, 'acc': batch_accuracy, 'nodes': nodes, 'dataset': datasetname, 'similarity': similarity,
-                         'train-duration': train_duration, 'test-duration': test_duration})
-        
-        # next batch (current tree becomes the previous tree)
-        batch_tree = full_clf
-
-    return accuracy
-
-
-def eval_efdt(batches, features, X_test, y_test, datasetname):
-    accuracy = []
-    batch_number = 1
-
-    X_batch_train, y_batch_train = batches[0]
-    X_batch_test, y_batch_test = X_test, y_test
-
-    model_batch = river_tree.ExtremelyFastDecisionTreeClassifier(
-        leaf_prediction = 'mc'
-    )
+    elif alg == 'vfdt':
+        model_batch = river_tree.HoeffdingTreeClassifier(
+            leaf_prediction = 'mc'
+        )
+    else:
+        raise Exception(f"Invalid param: alg={alg}")
    
     metric = metrics.Accuracy()
 
@@ -301,12 +255,20 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
     test_duration = end_time - start_time  # Calculate the duration
 
     batch_accuracy = np.mean(y_start_pred == y_batch_test)
-    batch1_rules = Ruleset(river_extract_rules(model_batch._root,river_children, river_is_leaf))
+    
+    try:
+        batch1_rules = Ruleset(river_extract_rules(model_batch._root,river_children, river_is_leaf))
+    except Exception as e:
+        # Doesn't work for VFDT. Todo FIX underlying bug
+        print(f"Warn: caught {e} when extracting rules for {alg}")
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        batch1_rules = None
 
     #pd.DataFrame({"y_start_pred":y_start_pred, "y_batch_test":y_batch_test}).to_csv("eval1.csv")
-    tree_metrics.river_save_tree(model_batch, f'{OUT_DIR}/efdt_batch_{batch_number}_{datasetname}')
+    tree_metrics.river_save_tree(model_batch, f'{OUT_DIR}/{alg}_batch_{batch_number}_{datasetname}')
     nodes = tree_metrics.river_nodes(model_batch)
-    accuracy.append({'alg': 'efdt', 'batch': batch_number, 'acc': batch_accuracy,
+    accuracy.append({'alg': alg, 'batch': batch_number, 'acc': batch_accuracy,
                      'nodes': nodes, 'dataset': datasetname, 'similarity': float('nan'),
                      'train-duration': train_duration, 'test-duration': test_duration})
     
@@ -323,7 +285,7 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
             print("End of train block.")
         except Exception as e:
             # Catch bug in EFDT. Todo file bug report
-            print(f"Warn: caught {e} when training EFDT on {datasetname} batch {batch_number}")
+            print(f"Warn: caught {e} when training {alg} on {datasetname} batch {batch_number}")
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
             # just log results for iterations so far
@@ -345,15 +307,26 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
         test_duration = end_time - start_time  # Calculate the duration
 
         batch_accuracy = np.mean(y_start_pred == y_batch_test)
-        batch2_rules = Ruleset(river_extract_rules(model_batch._root, river_children, river_is_leaf))
-
-        tree_metrics.river_save_tree(model_batch, f'{OUT_DIR}/efdt_batch_{batch_number}_{datasetname}')
+        
+        try:
+            batch2_rules = Ruleset(river_extract_rules(model_batch._root, river_children, river_is_leaf))
+        except Exception as e:
+            # Doesn't work for VFDT. Todo FIX underlying bug
+            print(f"Warn: caught {e} when extracting rules for {alg}")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
+            batch2_rules = None
+        
+        tree_metrics.river_save_tree(model_batch, f'{OUT_DIR}/{alg}_batch_{batch_number}_{datasetname}')
         nodes = tree_metrics.river_nodes(model_batch)
 
-        similarity = rule_set_similarity(batch1_rules, batch2_rules)
+        if batch1_rules is not None and batch2_rules is not None:
+            similarity = rule_set_similarity(batch1_rules, batch2_rules)
+        else:
+            similarity = float('nan')
         
         #import pdb; pdb.set_trace()
-        accuracy.append({'alg': 'efdt', 'batch': batch_number, 'acc': batch_accuracy,
+        accuracy.append({'alg': alg, 'batch': batch_number, 'acc': batch_accuracy,
                          'nodes': nodes, 'dataset': datasetname, 'similarity': similarity,
                          'train-duration': train_duration, 'test-duration': test_duration})
         
@@ -368,7 +341,9 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
 def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf'), max_test_size=float('inf'), datasetname='dataset'):
     #runs = 30
     #runs = 4
-    runs = 2
+    #runs = 2
+    runs = 12
+    #runs = 1
     #batches_per_run = 8
     batches_per_run = 10
     #batches_per_run = 2
@@ -385,9 +360,15 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
     batches, X_test, y_test = create_batches(df[features], df[label], batches_per_run * runs, max_batch_size, max_test_size)
     
     #model_names = ['efdt']
-    model_names = ['efdt', 'keep-regrow', 'tree-retrain']
+    #model_names = ['efdt', 'keep-regrow', 'tree-retrain']
     #model_names = ['efdt', 'keep-regrow']
     #model_names = ['keep-regrow']
+    model_names = ['efdt', 'vfdt', 'keep-regrow', 'tree-retrain',
+                  'keep-regrow_10_0', 'keep-regrow_10_2', 'keep-regrow_10_3', 'keep-regrow_10_4', 'keep-regrow_10_5', 'keep-regrow_10_10',
+                  'keep-regrow_1_1', 'tree-retrain_1_0',
+                  'keep-regrow_5_1', 'tree-retrain_5_0',
+                  'keep-regrow_20_1', 'tree-retrain_20_0',
+                  'keep-regrow_30_1', 'tree-retrain_30_0',]
     
     print(f"X_test, {X_test.shape}, {X_test}")
     print(f"y_test, {y_test.shape}, {y_test}")
