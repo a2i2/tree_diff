@@ -27,7 +27,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out11"
+OUT_DIR = "out12"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -99,7 +99,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
     batch_tree = keep_regrow_alg.grow_tree(
         pd.DataFrame(X_batch_train, columns=features),
         y_batch_train,
-        alpha = 10 * batch_number,
+        alpha = 10,
         beta = 0,
         grow_func = keep_regrow_alg.sklearn_grow_func,
         max_depth = float('inf')
@@ -141,7 +141,7 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
             pd.DataFrame(X_batch_train, columns=features),
             y_batch_train,
             old_tree = batch_tree,
-            alpha = 10 * batch_number,
+            alpha = 10,
             beta = 1,
             grow_func = keep_regrow_alg.sklearn_grow_func,
             max_depth = float('inf')
