@@ -25,7 +25,7 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out2"
+OUT_DIR = "out3"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
@@ -93,10 +93,10 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
     batch_tree = keep_regrow_alg.grow_tree(
         pd.DataFrame(X_batch_train, columns=features),
         y_batch_train,
-        alpha = 1,
+        alpha = 30,
         beta = 0,
         grow_func = keep_regrow_alg.sklearn_grow_func,
-        max_depth = float('inf')
+        max_depth = 4
     )
     end_time = time.time()    # Record the end time
     print("End of train block.")
@@ -135,10 +135,10 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
             pd.DataFrame(X_batch_train, columns=features),
             y_batch_train,
             old_tree = batch_tree,
-            alpha = 1,
+            alpha = 30,
             beta = 1,
             regrow_func = keep_regrow_alg.sklearn_grow_func,
-            max_depth = float('inf')
+            max_depth = 4
         )
         end_time = time.time()    # Record the end time
         print("End of train block.")
@@ -379,8 +379,8 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
 
 if __name__ == "__main__":
     BATCH_SIZE = 1000
-    #TEST_SIZE = 100000
-    TEST_SIZE = 10000
+    TEST_SIZE = 100000
+    #TEST_SIZE = 10000
 
     # need to shuffle
     process(
