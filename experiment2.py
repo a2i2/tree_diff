@@ -150,7 +150,14 @@ def eval_keep_regrow(batches, features, X_test, y_test, datasetname):
         print("End of train block.")
         train_duration = end_time - start_time  # Calculate the duration
 
-        similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
+        try:
+            similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
+        except Exception as e:
+            # Catch exception thrown when no nodes. Todo FIX underlying bug
+            print(f"Warn: caught {e} when calculating similarity")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
+            similarity = float('nan')
 
         X_batch_test_np = X_batch_test.to_numpy()
         y_batch_test_np = y_batch_test.to_numpy()
@@ -218,29 +225,28 @@ def eval_tree_retrain(batches, features, X_test, y_test, datasetname):
         X_batch_train = pd.concat([X_batch_train, X_batch_two_train], axis=0)
         y_batch_train = pd.concat([y_batch_train, y_batch_two_train], axis=0)
         
+        print("Start of train block.")
+        start_time = time.time()  # Record the start time
+        full_clf = keep_regrow_alg.grow_tree(
+            pd.DataFrame(X_batch_train, columns=features),
+            y_batch_train,
+            alpha = 10,
+            beta = 0,
+            grow_func = keep_regrow_alg.sklearn_grow_func,
+            max_depth = float('inf')
+        )
+        end_time = time.time()    # Record the end time
+        print("End of train block.")
+        train_duration = end_time - start_time  # Calculate the duration
+
         try:
-            print("Start of train block.")
-            start_time = time.time()  # Record the start time
-            full_clf = keep_regrow_alg.grow_tree(
-                pd.DataFrame(X_batch_train, columns=features),
-                y_batch_train,
-                alpha = 10,
-                beta = 0,
-                grow_func = keep_regrow_alg.sklearn_grow_func,
-                max_depth = float('inf')
-            )
-            end_time = time.time()    # Record the end time
-            print("End of train block.")
-            train_duration = end_time - start_time  # Calculate the duration
-        except:
-            # Catch bug in EFDT. Todo file bug report
-            print(f"Warn: caught {e} when training EFDT on {datasetname} batch {batch_number}")
+            similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
+        except Exception as e:
+            # Catch exception thrown when no nodes. Todo FIX underlying bug
+            print(f"Warn: caught {e} when calculating similarity")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
-            # just log results for iterations so far
-            return accuracy
-
-
-        similarity = rule_set_similarity(tuple_tree_conversion(full_clf), tuple_tree_conversion(batch_tree))
+            similarity = float('nan')
 
         X_batch_test_np = X_batch_test.to_numpy()
         y_batch_test_np = y_batch_test.to_numpy()
@@ -307,13 +313,22 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
     for (X_batch_two_train, y_batch_two_train) in batches[1:]:
         batch_number += 1
 
-        print("Start of train block.")
-        start_time = time.time()  # Record the start time
-        # TODO: Test that this is updating the model with additional data rather than starting from scratch
-        evaluate.progressive_val_score(stream.iter_pandas(X_batch_two_train, y_batch_two_train), model_batch, metric)
-        end_time = time.time()    # Record the end time
-        train_duration = end_time - start_time  # Calculate the duration
-        print("End of train block.")
+        try:
+            print("Start of train block.")
+            start_time = time.time()  # Record the start time
+            # TODO: Test that this is updating the model with additional data rather than starting from scratch
+            evaluate.progressive_val_score(stream.iter_pandas(X_batch_two_train, y_batch_two_train), model_batch, metric)
+            end_time = time.time()    # Record the end time
+            train_duration = end_time - start_time  # Calculate the duration
+            print("End of train block.")
+        except Exception as e:
+            # Catch bug in EFDT. Todo file bug report
+            print(f"Warn: caught {e} when training EFDT on {datasetname} batch {batch_number}")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
+            # just log results for iterations so far
+            return accuracy
+
         
         print("Start of test block.")
         start_time = time.time()  # Record the start time
@@ -335,12 +350,7 @@ def eval_efdt(batches, features, X_test, y_test, datasetname):
         tree_metrics.river_save_tree(model_batch, f'{OUT_DIR}/efdt_batch_{batch_number}_{datasetname}')
         nodes = tree_metrics.river_nodes(model_batch)
 
-        try:
-            similarity = rule_set_similarity(batch1_rules, batch2_rules)
-        except ZeroDivisionError as e:
-            # This can be the case if both rulesets have 0 length
-            print(f"Warn: caught {e}")
-            similarity = float('nan')
+        similarity = rule_set_similarity(batch1_rules, batch2_rules)
         
         #import pdb; pdb.set_trace()
         accuracy.append({'alg': 'efdt', 'batch': batch_number, 'acc': batch_accuracy,
@@ -359,7 +369,8 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
     #runs = 30
     #runs = 4
     runs = 2
-    batches_per_run = 8
+    #batches_per_run = 8
+    batches_per_run = 10
     #batches_per_run = 2
     print(f"=== Processing {datasetname} ===")
 
@@ -393,7 +404,6 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
 if __name__ == "__main__":
     BATCH_SIZE = 1000
     TEST_SIZE = 100000
-    #TEST_SIZE = 10000
 
     # need to shuffle
     process(
@@ -404,11 +414,7 @@ if __name__ == "__main__":
         BATCH_SIZE,
         TEST_SIZE,
         "Skin")
-    # with 2,000 points tree gets left as-is by keep-regrow
-    #process("../datasets/skin+segmentation/Skin_NonSkin.txt", "CLASS", ["B","G","R","CLASS"], '\t', 2000)
-
-    #exit()
-
+    
     process(
         f"{DATA_DIR}/higgs/HIGGS.csv",
         "prediction",
@@ -428,7 +434,7 @@ if __name__ == "__main__":
         TEST_SIZE,
         "Susy"
     )
-
+    
     # includes headers
     process(
         f"{DATA_DIR}/hepmass/all_train.csv",

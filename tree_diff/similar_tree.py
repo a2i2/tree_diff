@@ -137,8 +137,3 @@ def rule_set_similarity(ruleset1: Ruleset, ruleset2: Ruleset):
         # This can be the case if both rulesets have 0 length
         print(f"Warn: caught {e} in rule_set_similarity")
         return float('nan')
-    except Exception:
-        # Catch exception thrown when no nodes. Todo FIX underlying bug
-        print(f"Warn: caught {e} in rule_set_similarity")
-        traceback.print_exception(exc_type, exc_value, exc_traceback)
-        return float('nan')
