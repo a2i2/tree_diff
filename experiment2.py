@@ -27,15 +27,15 @@ import tree_diff.tree_metrics as tree_metrics
 from tree_diff import tree, keep_regrow_alg
 
 DATA_DIR = "../datasets"
-OUT_DIR = "out16"
+OUT_DIR = "out17"
 
 # Create subsequent batches of dataset  
 def create_batches(X, y, n=2, max_batch_size=float('inf'), max_test_size=float('inf')):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.5, random_state=2)
     
     test_size = min(len(y_test), max_test_size)
-    X_test = X_test[:test_size]
-    y_test = y_test[:test_size]
+    X_test = X_test.iloc[:test_size]
+    y_test = y_test.iloc[:test_size]
 
     num_batches = n
     batch_size = min(len(X_train) // num_batches, max_batch_size)
@@ -363,12 +363,16 @@ def process(datapath, label, columns=False, sep=',', max_batch_size=float('inf')
     #model_names = ['efdt', 'keep-regrow', 'tree-retrain']
     #model_names = ['efdt', 'keep-regrow']
     #model_names = ['keep-regrow']
-    model_names = ['efdt', 'vfdt', 'keep-regrow', 'tree-retrain',
-                  'keep-regrow_10_0', 'keep-regrow_10_2', 'keep-regrow_10_3', 'keep-regrow_10_4', 'keep-regrow_10_5', 'keep-regrow_10_10',
-                  'keep-regrow_1_1', 'tree-retrain_1_0',
-                  'keep-regrow_5_1', 'tree-retrain_5_0',
-                  'keep-regrow_20_1', 'tree-retrain_20_0',
-                  'keep-regrow_30_1', 'tree-retrain_30_0',]
+    model_names = ['efdt', 'vfdt',
+                  'keep-regrow_5_0', 'keep-regrow_5_1', 'keep-regrow_5_2', 'keep-regrow_5_3', 'keep-regrow_5_4', 'keep-regrow_5_5', 'keep-regrow_5_10',
+                  'tree-retrain_1_0',
+                  'tree-retrain_2_0',
+                  'tree-retrain_3_0',
+                  'tree-retrain_4_0',
+                  'tree-retrain_5_0',
+                  'tree-retrain_10_0',
+                  'tree-retrain_20_0',
+                  'tree-retrain_30_0',]
     
     print(f"X_test, {X_test.shape}, {X_test}")
     print(f"y_test, {y_test.shape}, {y_test}")
