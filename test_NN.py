@@ -150,4 +150,4 @@ else:
 
 for i in range(5):
     compute_merge_table(f"{input_file}_{i}")
-    break # only for first input (TESTING)
+    #break # only for first input (TESTING)
