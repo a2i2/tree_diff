@@ -12,4 +12,4 @@
 module purge
 module load Anaconda3
 source activate merge
-python test_NN.py randinit_higgs
+python test_NN.py randinit_higgs data_higgs skipvol

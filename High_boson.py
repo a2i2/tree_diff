@@ -123,24 +123,28 @@ def rand_subsets(X_train, X_test, y_train, y_test, fname, random_state = 32, spl
     save_data(X_train1, y_train1, f'train_data_higgs_{fname}_1')
     save_data(X_train2, y_train2, f'train_data_higgs_{fname}_2')
 
+columns = ["prediction","lepton_pT","lepton_eta","lepton_phi","missing_energy_magnitude","missing_energy_phi","jet_1_pt","jet_1_eta","jet_1_phi","jet_1_b-tag","jet_2_pt","jet_2_eta","jet_2_phi","jet_2_b-tag","jet_3_pt","jet_3_eta","jet_3_phi","jet_3_b-tag","jet_4_pt","jet_4_eta","jet_4_phi","jet_4_b-tag","m_jj","m_jjj","m_lv","m_jlv","m_bb","m_wbb","m_wwbb"]
 
-higgs_boson_train = pd.read_csv("notebooks/higgs-boson/training.csv")
+higgs_boson_train = pd.read_csv("HIGGS.csv", names = columns)
+#higgs_boson_train = pd.read_csv("notebooks/higgs-boson/training.csv")
 
 # use all features (other than EventId and weight), we will apply PCA to reduce dimensionality
-higgs_boson_train_simple = higgs_boson_train.copy()
-higgs_boson_train_simple.drop(['EventId', 'Weight'], axis=1)
-df = higgs_boson_train_simple
+#higgs_boson_train_simple = higgs_boson_train.copy()
+#higgs_boson_train_simple.drop(['EventId', 'Weight'], axis=1)
+#df = higgs_boson_train_simple
+
+# We use .03 percent of the data 
+higgs_boson_simple = higgs_boson_train.sample(frac = .03)
+
+df = higgs_boson_simple
 
 # Preprocessing
 encoder = LabelEncoder()
-df['Label'] = encoder.fit_transform(df['Label'])
+df['prediction'] = encoder.fit_transform(df['prediction'])
 
-X = df.drop('Label', axis=1)
-y = df['Label']
+X = df.drop('prediction', axis=1)
+y = df['prediction']
 
-# Applying PCA to reduce features to 6
-pca = PCA(n_components=6)
-X = pd.DataFrame(pca.fit_transform(X))
 
 # normalise inputs to be between -1 and 1
 scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -159,8 +163,3 @@ for i in range(5): # do 5 different initialisations
     # Generate weights and biases file for a random initialisation
     rand_initialisation(X_train, X_test, y_train, y_test, f"randinit_higgs_{i}")
 
-for i in range(5): # do 5 different random splits
-    rand_subsets(X_train, X_test, y_train, y_test, f"subset_higgs_{i}", i, 0.5)
-
-for i in range(5): # do 5 different random splits (using 30/70 data split)
-    rand_subsets(X_train, X_test, y_train, y_test, f"subset_0.7_higgs_{i}", i, 0.7)
