@@ -80,7 +80,7 @@ def condition_similarity(condition1: Condition, condition2: Condition):
 
     # Handle <= as a special case as per paper
     if condition1.operator == Operator.LE and condition2.operator == Operator.LE:
-        t = PERMISSIBLE_DELTA * condition1.threshold + condition1.threshold
+        t = abs(PERMISSIBLE_DELTA * condition1.threshold)
         x = abs(condition1.threshold - condition2.threshold)
         if x == 0:
             return 1
